@@ -3,6 +3,7 @@ const FormData = require('form-data');
 const { BlobServiceClient } = require('@azure/storage-blob');
 const { DefaultAzureCredential } = require('@azure/identity');
 const https = require('https');
+const pool = require('../config/db.config');
 
 const generatepdf = async (request, reply) => {
   try {
@@ -14,12 +15,23 @@ const generatepdf = async (request, reply) => {
 
     // Check if file is uploaded - access from request.body since multipart plugin attaches it there
     const fileData = request.body.File;
+    const signerEmail = request.body.email; // Get email from UI
+    
     console.log('File data received:', fileData);
+    console.log('Signer email received:', signerEmail);
     
     if (!fileData || !fileData.file) {
       return reply.code(400).send({
         success: false,
         message: 'File is required',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    if (!signerEmail) {
+      return reply.code(400).send({
+        success: false,
+        message: 'Signer email is required',
         timestamp: new Date().toISOString()
       });
     }
@@ -88,7 +100,7 @@ const generatepdf = async (request, reply) => {
           "order": 1,
           "memberInfos": [
             {
-              "email": "shashi.p.kant@haleon.com"
+              "email": signerEmail
             }
           ]
         }
@@ -118,7 +130,41 @@ const generatepdf = async (request, reply) => {
 
     console.log('Agreement created successfully:', agreementResponse.data);
 
-    // Step 4: Upload file to Azure Blob Storage using proven working method
+    // Step 4: Save agreement details to database
+    try {
+      const agreementId = agreementResponse.data.id;
+      const status = "IN_PROCESS";
+      const createdAt = new Date();
+
+      console.log('Saving agreement to database:', {
+        email: signerEmail,
+        agreement_id: agreementId,
+        status: status,
+        created_at: createdAt
+      });
+
+      const insertQuery = `
+        INSERT INTO public.agreements (email, agreement_id, status, created_at)
+        VALUES ($1, $2, $3, $4)
+        RETURNING id
+      `;
+
+      const insertResult = await pool.query(insertQuery, [
+        signerEmail,
+        agreementId,
+        status,
+        createdAt
+      ]);
+
+      const dbId = insertResult.rows[0].id;
+      console.log('Agreement saved to database with ID:', dbId);
+
+    } catch (dbError) {
+      console.error('Database insertion failed:', dbError);
+      // Continue with the workflow even if DB insertion fails
+    }
+
+    // Step 5: Upload file to Azure Blob Storage using proven working method
     try {
       console.log('=== AZURE BLOB UPLOAD STARTED ===');
       
@@ -178,14 +224,20 @@ const generatepdf = async (request, reply) => {
         etag: uploadBlobResponse.etag
       });
 
-      // Return all four responses
+      // Return all five responses (including database)
       return reply.send({
         success: true,
-        message: 'OAuth token refreshed, file uploaded to Adobe Sign, agreement created, and file uploaded to Azure Blob successfully',
+        message: 'OAuth token refreshed, file uploaded to Adobe Sign, agreement created, saved to database, and file uploaded to Azure Blob successfully',
         data: {
           oauth: tokenResponse.data,
           upload: uploadResponse.data,
           agreement: agreementResponse.data,
+          database: {
+            message: 'Agreement saved to database successfully',
+            email: signerEmail,
+            agreement_id: agreementResponse.data.id,
+            status: "IN_PROCESS"
+          },
           azureBlob: {
             accountName: accountName,
             containerName: containerName,
@@ -209,11 +261,17 @@ const generatepdf = async (request, reply) => {
       // Return response without Azure Blob data if it fails
       return reply.send({
         success: true,
-        message: 'OAuth token refreshed, file uploaded to Adobe Sign, and agreement created successfully. Azure Blob upload failed.',
+        message: 'OAuth token refreshed, file uploaded to Adobe Sign, agreement created, and saved to database successfully. Azure Blob upload failed.',
         data: {
           oauth: tokenResponse.data,
           upload: uploadResponse.data,
           agreement: agreementResponse.data,
+          database: {
+            message: 'Agreement saved to database successfully',
+            email: signerEmail,
+            agreement_id: agreementResponse.data.id,
+            status: "IN_PROCESS"
+          },
           azureBlob: {
             error: 'Azure Blob upload failed',
             message: azureError.message,
