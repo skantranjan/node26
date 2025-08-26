@@ -120,12 +120,13 @@ const generatepdf = async (request, reply) => {
 
     // Step 4: Upload file to Azure Blob Storage
     try {
-      const blobServiceClient = new BlobServiceClient(
-        `https://${process.env.AZURE_STORAGE_ACCOUNT}.blob.core.windows.net`,
-        new DefaultAzureCredential()
-      );
-
-      const containerClient = blobServiceClient.getContainerClient('adobesign');
+      // Use your specific Azure configuration
+      const accountName = "ukssdptldev001";
+      const containerName = "adobesign";
+      const blobUrl = `https://${accountName}.blob.core.windows.net`;
+      
+      const blobServiceClient = new BlobServiceClient(blobUrl, new DefaultAzureCredential());
+      const containerClient = blobServiceClient.getContainerClient(containerName);
       
       // Create a unique blob name with timestamp
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -141,6 +142,8 @@ const generatepdf = async (request, reply) => {
       });
 
       console.log('File uploaded to Azure Blob successfully:', {
+        accountName: accountName,
+        containerName: containerName,
         blobName: blobName,
         url: blockBlobClient.url,
         etag: uploadBlobResponse.etag
@@ -155,10 +158,11 @@ const generatepdf = async (request, reply) => {
           upload: uploadResponse.data,
           agreement: agreementResponse.data,
           azureBlob: {
+            accountName: accountName,
+            containerName: containerName,
             blobName: blobName,
             url: blockBlobClient.url,
-            etag: uploadBlobResponse.etag,
-            container: 'adobesign'
+            etag: uploadBlobResponse.etag
           }
         },
         timestamp: new Date().toISOString()
