@@ -2,6 +2,7 @@ const axios = require('axios');
 const FormData = require('form-data');
 const { BlobServiceClient } = require('@azure/storage-blob');
 const { DefaultAzureCredential } = require('@azure/identity');
+const https = require('https');
 
 const generatepdf = async (request, reply) => {
   try {
@@ -33,11 +34,14 @@ const generatepdf = async (request, reply) => {
       refresh_token: '3AAABLblqZhBWpF_JvVhjM2acltikyJGMalPlgQm2RgFY9wR3KeI91jCBNaQgC5V19B7D1cUjqK0*'
     };
 
-    // Get new access token
+    // Get new access token with SSL bypass
     const tokenResponse = await axios.post(refreshUrl, requestData, {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded'
-      }
+      },
+      httpsAgent: new https.Agent({
+        rejectUnauthorized: false
+      })
     });
 
     const accessToken = tokenResponse.data.access_token;
@@ -61,12 +65,15 @@ const generatepdf = async (request, reply) => {
 
     console.log('Uploading file:', filename, 'Content-Type:', contentType, 'Buffer size:', buffer.length);
 
-    // Upload file using the new access token
+    // Upload file using the new access token with SSL bypass
     const uploadResponse = await axios.post(transientUrl, formData, {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
         ...formData.getHeaders()
-      }
+      },
+      httpsAgent: new https.Agent({
+        rejectUnauthorized: false
+      })
     });
 
     console.log('File uploaded successfully:', uploadResponse.data);
@@ -98,12 +105,15 @@ const generatepdf = async (request, reply) => {
 
     console.log('Creating agreement with data:', agreementData);
 
-    // Create agreement using the access token
+    // Create agreement using the access token with SSL bypass
     const agreementResponse = await axios.post(agreementsUrl, agreementData, {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json'
-      }
+      },
+      httpsAgent: new https.Agent({
+        rejectUnauthorized: false
+      })
     });
 
     console.log('Agreement created successfully:', agreementResponse.data);
