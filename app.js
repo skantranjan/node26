@@ -33,6 +33,8 @@ const addPmRoutes = require('./routes/addpm.routes');
 const copySkuRoutes = require('./routes/copySku.routes');
 const getUserRoutes = require('./routes/getUser.routes');
 const componentDetailsRoutes = require('./routes/componentDetails.routes');
+const generatepdfRoutes = require('./routes/generatepdf.routes');
+const pdfTransientDocumentRoutes = require('./routes/pdfTransientDocument.routes');
 
 // Register multipart plugin for file uploads (MUST be registered before routes)
 fastify.register(fastifyMultipart, {
@@ -126,6 +128,12 @@ fastify.register(getUserRoutes);
 
 // Register Component Details routes
 fastify.register(componentDetailsRoutes);
+
+// Register Generate PDF routes
+fastify.register(generatepdfRoutes);
+
+// Register PDF Transient Document routes
+fastify.register(pdfTransientDocumentRoutes);
 
 // Add JWT middleware globally
 //fastify.addHook('preHandler', jwtMiddleware);
