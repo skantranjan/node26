@@ -35,6 +35,8 @@ const getUserRoutes = require('./routes/getUser.routes');
 const componentDetailsRoutes = require('./routes/componentDetails.routes');
 const generatepdfRoutes = require('./routes/generatepdf.routes');
 const pdfTransientDocumentRoutes = require('./routes/pdfTransientDocument.routes');
+const checkPdfStatusRoutes = require('./routes/checkPdfStatus.routes');
+const { checkPdfStatus } = require('./controllers/controller.checkPdfStatus');
 
 // Register multipart plugin for file uploads (MUST be registered before routes)
 fastify.register(fastifyMultipart, {
@@ -135,6 +137,9 @@ fastify.register(generatepdfRoutes);
 // Register PDF Transient Document routes
 fastify.register(pdfTransientDocumentRoutes);
 
+// Register Check PDF Status routes
+fastify.register(checkPdfStatusRoutes);
+
 // Add JWT middleware globally
 //fastify.addHook('preHandler', jwtMiddleware);
 
@@ -202,6 +207,42 @@ const start = async () => {
     
     await fastify.listen({ port: process.env.PORT || 3000, host: '0.0.0.0' });
     fastify.log.info(`Server running on port ${process.env.PORT || 3000}`);
+    
+    // Schedule PDF status check every 15 minutes
+    const FIFTEEN_MINUTES = 15 * 60 * 1000; // 15 minutes in milliseconds
+    
+    // Create a mock request and reply object for the scheduled function
+    const mockRequest = {};
+    const mockReply = {
+      send: (data) => {
+        fastify.log.info('Scheduled PDF status check completed:', {
+          agreementsChecked: data.data?.agreementsChecked || 0,
+          statusUpdates: data.data?.statusUpdates || 0,
+          filesDownloaded: data.data?.filesDownloaded || 0
+        });
+      },
+      code: () => ({
+        send: (data) => {
+          fastify.log.error('Scheduled PDF status check failed:', data);
+        }
+      })
+    };
+    
+    // Start the scheduled task
+    const runScheduledCheck = async () => {
+      try {
+        fastify.log.info('Running scheduled PDF status check...');
+        await checkPdfStatus(mockRequest, mockReply);
+      } catch (error) {
+        fastify.log.error('Scheduled PDF status check error:', error);
+      }
+    };
+    
+    // Run immediately on startup, then every 15 minutes
+    runScheduledCheck();
+    setInterval(runScheduledCheck, FIFTEEN_MINUTES);
+    
+    fastify.log.info('PDF status check scheduled to run every 15 minutes');
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);
