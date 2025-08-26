@@ -13,6 +13,8 @@ const generatepdf = async (request, reply) => {
     // Check if file is uploaded - access from request.body since multipart plugin attaches it there
     const fileData = request.body.File;
     const signerEmail = request.body.email?.value || request.body.email; // Get email value from UI
+    const cmCode = request.body.cm_code?.value || request.body.cm_code; // Get CM code from UI
+    const period = request.body.period?.value || request.body.period; // Get period from UI
     
     // Safe logging without circular references
     if (fileData) {
@@ -50,6 +52,23 @@ const generatepdf = async (request, reply) => {
       return reply.code(400).send({
         success: false,
         message: 'Valid signer email is required',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Validate CM code and period
+    if (!cmCode || typeof cmCode !== 'string') {
+      return reply.code(400).send({
+        success: false,
+        message: 'CM code is required',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    if (!period || typeof period !== 'string') {
+      return reply.code(400).send({
+        success: false,
+        message: 'Period is required',
         timestamp: new Date().toISOString()
       });
     }
@@ -163,12 +182,14 @@ const generatepdf = async (request, reply) => {
         email: emailValue,
         agreement_id: agreementId,
         status: status,
-        created_at: createdAt
+        created_at: createdAt,
+        cm_code: cmCode,
+        periods: period
       });
 
       const insertQuery = `
-        INSERT INTO public.agreements (email, agreement_id, status, created_at)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO public.agreements (email, agreement_id, status, created_at, cm_code, periods, adobe_status, updated_at, signed_pdf_url, blob_uploaded_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         RETURNING id
       `;
 
@@ -176,7 +197,13 @@ const generatepdf = async (request, reply) => {
         emailValue,
         agreementId,
         status,
-        createdAt
+        createdAt,
+        cmCode,
+        period,
+        'IN_PROCESS',
+        createdAt,
+        null, // signed_pdf_url will be updated later
+        null   // blob_uploaded_at will be updated later
       ]);
 
       dbId = insertResult.rows[0].id;
@@ -249,6 +276,33 @@ const generatepdf = async (request, reply) => {
         etag: uploadBlobResponse.etag
       };
 
+      // Step 6: Update database with blob URL and upload timestamp
+      if (dbId && azureResult.url) {
+        console.log('=== STEP 6: Updating Database with Blob URL ===');
+        try {
+          const updateQuery = `
+            UPDATE public.agreements 
+            SET signed_pdf_url = $1, 
+                blob_uploaded_at = $2, 
+                adobe_status = $3,
+                updated_at = $4
+            WHERE id = $5
+          `;
+          
+          const updateResult = await pool.query(updateQuery, [
+            azureResult.url,
+            new Date(),
+            'BLOB_UPLOADED',
+            new Date(),
+            dbId
+          ]);
+          
+          console.log('Database updated with blob URL successfully');
+        } catch (updateError) {
+          console.error('Database update failed:', updateError.message);
+        }
+      }
+
     } catch (azureError) {
       console.error('Azure Blob upload failed:', azureError.message);
       azureResult = {
@@ -281,7 +335,10 @@ const generatepdf = async (request, reply) => {
           email: emailValue,
           agreement_id: agreementId,
           status: "IN_PROCESS",
-          db_id: dbId
+          cm_code: cmCode,
+          periods: period,
+          db_id: dbId,
+          blob_url_updated: azureResult && azureResult.url ? true : false
         },
         azureBlob: azureResult
       },
