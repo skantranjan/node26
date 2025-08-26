@@ -7,18 +7,33 @@ const pool = require('../config/db.config');
 
 const generatepdf = async (request, reply) => {
   try {
-    console.log('Request received:', {
-      isMultipart: request.isMultipart(),
-      headers: request.headers,
-      body: request.body
-    });
+    console.log('=== API CALL STARTED ===');
+    console.log('Request isMultipart:', request.isMultipart());
 
     // Check if file is uploaded - access from request.body since multipart plugin attaches it there
     const fileData = request.body.File;
-    const signerEmail = request.body.email; // Get email from UI
+    const signerEmail = request.body.email?.value || request.body.email; // Get email value from UI
     
-    console.log('File data received:', fileData);
-    console.log('Signer email received:', signerEmail);
+    // Safe logging without circular references
+    if (fileData) {
+      console.log('File data received:', {
+        filename: fileData.filename || 'unknown',
+        mimetype: fileData.mimetype || 'unknown',
+        bufferSize: fileData._buf ? fileData._buf.length : 0,
+        hasFile: !!fileData.file
+      });
+    } else {
+      console.log('No file data received');
+    }
+    
+    // Safely log email without circular references
+    if (signerEmail && typeof signerEmail === 'object' && signerEmail.value) {
+      console.log('Signer email received:', signerEmail.value);
+    } else if (typeof signerEmail === 'string') {
+      console.log('Signer email received:', signerEmail);
+    } else {
+      console.log('Signer email received (raw):', JSON.stringify(signerEmail, null, 2));
+    }
     
     if (!fileData || !fileData.file) {
       return reply.code(400).send({
@@ -28,15 +43,19 @@ const generatepdf = async (request, reply) => {
       });
     }
 
-    if (!signerEmail) {
+    // Extract email value safely
+    const emailValue = signerEmail?.value || signerEmail;
+    
+    if (!emailValue || typeof emailValue !== 'string' || !emailValue.includes('@')) {
       return reply.code(400).send({
         success: false,
-        message: 'Signer email is required',
+        message: 'Valid signer email is required',
         timestamp: new Date().toISOString()
       });
     }
 
     // Step 1: Get Adobe Sign OAuth refresh token
+    console.log('=== STEP 1: Getting OAuth Token ===');
     const refreshUrl = 'https://api.eu1.echosign.com/oauth/v2/refresh';
     
     const requestData = {
@@ -57,9 +76,10 @@ const generatepdf = async (request, reply) => {
     });
 
     const accessToken = tokenResponse.data.access_token;
-    console.log('New Access Token received:', accessToken);
+    console.log('OAuth Token received successfully');
 
     // Step 2: Upload file to Adobe Sign transient documents
+    console.log('=== STEP 2: Uploading to Adobe Sign ===');
     const transientUrl = 'https://api.eu1.echosign.com/api/rest/v6/transientDocuments';
     
     // Create form data for file upload
@@ -88,9 +108,10 @@ const generatepdf = async (request, reply) => {
       })
     });
 
-    console.log('File uploaded successfully:', uploadResponse.data);
+    console.log('File uploaded to Adobe Sign successfully');
 
     // Step 3: Create Adobe Sign agreement
+    console.log('=== STEP 3: Creating Agreement ===');
     const agreementsUrl = 'https://api.eu1.echosign.com/api/rest/v6/agreements';
     
     const agreementData = {
@@ -98,11 +119,11 @@ const generatepdf = async (request, reply) => {
         {
           "role": "SIGNER",
           "order": 1,
-          "memberInfos": [
-            {
-              "email": signerEmail
-            }
-          ]
+                "memberInfos": [
+        {
+          "email": emailValue
+        }
+      ]
         }
       ],
       "name": filename, // Use the uploaded filename
@@ -115,7 +136,7 @@ const generatepdf = async (request, reply) => {
       "state": "IN_PROCESS"
     };
 
-    console.log('Creating agreement with data:', agreementData);
+    console.log('Creating agreement for email:', emailValue);
 
     // Create agreement using the access token with SSL bypass
     const agreementResponse = await axios.post(agreementsUrl, agreementData, {
@@ -128,16 +149,18 @@ const generatepdf = async (request, reply) => {
       })
     });
 
-    console.log('Agreement created successfully:', agreementResponse.data);
+    const agreementId = agreementResponse.data.id;
+    console.log('Agreement created successfully with ID:', agreementId);
 
     // Step 4: Save agreement details to database
+    console.log('=== STEP 4: Saving to Database ===');
+    let dbId = null;
     try {
-      const agreementId = agreementResponse.data.id;
       const status = "IN_PROCESS";
       const createdAt = new Date();
 
       console.log('Saving agreement to database:', {
-        email: signerEmail,
+        email: emailValue,
         agreement_id: agreementId,
         status: status,
         created_at: createdAt
@@ -150,24 +173,24 @@ const generatepdf = async (request, reply) => {
       `;
 
       const insertResult = await pool.query(insertQuery, [
-        signerEmail,
+        emailValue,
         agreementId,
         status,
         createdAt
       ]);
 
-      const dbId = insertResult.rows[0].id;
+      dbId = insertResult.rows[0].id;
       console.log('Agreement saved to database with ID:', dbId);
 
     } catch (dbError) {
-      console.error('Database insertion failed:', dbError);
+      console.error('Database insertion failed:', dbError.message);
       // Continue with the workflow even if DB insertion fails
     }
 
     // Step 5: Upload file to Azure Blob Storage using proven working method
+    console.log('=== STEP 5: Azure Blob Upload ===');
+    let azureResult = null;
     try {
-      console.log('=== AZURE BLOB UPLOAD STARTED ===');
-      
       // Use the same Azure configuration as addComponent
       const accountName = process.env.AZURE_STORAGE_ACCOUNT || "ukssdptldev001";
       const containerName = "adobesign"; // Use adobesign container
@@ -184,11 +207,11 @@ const generatepdf = async (request, reply) => {
       let blobServiceClient;
       if (process.env.NODE_ENV === 'production' && process.env.AZURE_STORAGE_CONNECTION_STRING) {
         // Use connection string for production
-        console.log('🔑 Using Azure Storage Connection String');
+        console.log('Using Azure Storage Connection String');
         blobServiceClient = BlobServiceClient.fromConnectionString(process.env.AZURE_STORAGE_CONNECTION_STRING);
       } else {
         // Use credential-based authentication (same as addComponent)
-        console.log('🔑 Using Azure Credentials');
+        console.log('Using Azure Credentials');
         const { AzureCliCredential } = require("@azure/identity");
         const credential = new AzureCliCredential();
         blobServiceClient = new BlobServiceClient(blobUrl, credential);
@@ -216,82 +239,72 @@ const generatepdf = async (request, reply) => {
         }
       });
 
-      console.log('File uploaded to Azure Blob successfully:', {
+      console.log('File uploaded to Azure Blob successfully');
+
+      azureResult = {
         accountName: accountName,
         containerName: containerName,
         blobName: blobName,
         url: blockBlobClient.url,
         etag: uploadBlobResponse.etag
-      });
-
-      // Return all five responses (including database)
-      return reply.send({
-        success: true,
-        message: 'OAuth token refreshed, file uploaded to Adobe Sign, agreement created, saved to database, and file uploaded to Azure Blob successfully',
-        data: {
-          oauth: tokenResponse.data,
-          upload: uploadResponse.data,
-          agreement: agreementResponse.data,
-          database: {
-            message: 'Agreement saved to database successfully',
-            email: signerEmail,
-            agreement_id: agreementResponse.data.id,
-            status: "IN_PROCESS"
-          },
-          azureBlob: {
-            accountName: accountName,
-            containerName: containerName,
-            blobName: blobName,
-            url: blockBlobClient.url,
-            etag: uploadBlobResponse.etag
-          }
-        },
-        timestamp: new Date().toISOString()
-      });
+      };
 
     } catch (azureError) {
-      console.error('=== AZURE BLOB UPLOAD FAILED ===');
-      console.error('Error details:', {
-        message: azureError.message,
-        stack: azureError.stack,
-        code: azureError.code,
-        statusCode: azureError.statusCode
-      });
-      
-      // Return response without Azure Blob data if it fails
-      return reply.send({
-        success: true,
-        message: 'OAuth token refreshed, file uploaded to Adobe Sign, agreement created, and saved to database successfully. Azure Blob upload failed.',
-        data: {
-          oauth: tokenResponse.data,
-          upload: uploadResponse.data,
-          agreement: agreementResponse.data,
-          database: {
-            message: 'Agreement saved to database successfully',
-            email: signerEmail,
-            agreement_id: agreementResponse.data.id,
-            status: "IN_PROCESS"
-          },
-          azureBlob: {
-            error: 'Azure Blob upload failed',
-            message: azureError.message,
-            code: azureError.code,
-            statusCode: azureError.statusCode
-          }
-        },
-        timestamp: new Date().toISOString()
-      });
+      console.error('Azure Blob upload failed:', azureError.message);
+      azureResult = {
+        error: 'Azure Blob upload failed',
+        message: azureError.message
+      };
     }
 
+    // Return success response with safe data
+    console.log('=== API CALL COMPLETED SUCCESSFULLY ===');
+    return reply.send({
+      success: true,
+      message: 'Complete workflow executed successfully',
+      data: {
+        oauth: {
+          message: 'OAuth token refreshed successfully',
+          expires_in: tokenResponse.data.expires_in || 3600
+        },
+        upload: {
+          message: 'File uploaded to Adobe Sign successfully',
+          transientDocumentId: uploadResponse.data.transientDocumentId
+        },
+        agreement: {
+          message: 'Agreement created successfully',
+          id: agreementId,
+          name: filename
+        },
+        database: {
+          message: dbId ? 'Agreement saved to database successfully' : 'Database insertion failed',
+          email: emailValue,
+          agreement_id: agreementId,
+          status: "IN_PROCESS",
+          db_id: dbId
+        },
+        azureBlob: azureResult
+      },
+      timestamp: new Date().toISOString()
+    });
+
   } catch (error) {
-    // Log the error
-    console.error('Error in generatepdf API:', error.response?.data || error.message);
+    // Log the error safely without circular references
+    console.error('=== API CALL FAILED ===');
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code || 'UNKNOWN_ERROR',
+      stack: error.stack ? 'Stack trace available' : 'No stack trace'
+    });
     
-    // Return error response
-    return reply.code(error.response?.status || 500).send({
+    // Return safe error response
+    return reply.code(500).send({
       success: false,
       message: 'Failed to process request',
-      error: error.response?.data || error.message,
+      error: {
+        message: error.message,
+        code: error.code || 'UNKNOWN_ERROR'
+      },
       timestamp: new Date().toISOString()
     });
   }
