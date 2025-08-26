@@ -118,23 +118,52 @@ const generatepdf = async (request, reply) => {
 
     console.log('Agreement created successfully:', agreementResponse.data);
 
-    // Step 4: Upload file to Azure Blob Storage
+    // Step 4: Upload file to Azure Blob Storage using proven working method
     try {
-      // Use your specific Azure configuration
-      const accountName = "ukssdptldev001";
-      const containerName = "adobesign";
+      console.log('=== AZURE BLOB UPLOAD STARTED ===');
+      
+      // Use the same Azure configuration as addComponent
+      const accountName = process.env.AZURE_STORAGE_ACCOUNT || "ukssdptldev001";
+      const containerName = "adobesign"; // Use adobesign container
       const blobUrl = `https://${accountName}.blob.core.windows.net`;
       
-      const blobServiceClient = new BlobServiceClient(blobUrl, new DefaultAzureCredential());
+      console.log('Azure Configuration:', {
+        accountName: accountName,
+        containerName: containerName,
+        blobUrl: blobUrl,
+        environment: process.env.NODE_ENV || 'development'
+      });
+
+      // Use the same authentication method as addComponent
+      let blobServiceClient;
+      if (process.env.NODE_ENV === 'production' && process.env.AZURE_STORAGE_CONNECTION_STRING) {
+        // Use connection string for production
+        console.log('🔑 Using Azure Storage Connection String');
+        blobServiceClient = BlobServiceClient.fromConnectionString(process.env.AZURE_STORAGE_CONNECTION_STRING);
+      } else {
+        // Use credential-based authentication (same as addComponent)
+        console.log('🔑 Using Azure Credentials');
+        const { AzureCliCredential } = require("@azure/identity");
+        const credential = new AzureCliCredential();
+        blobServiceClient = new BlobServiceClient(blobUrl, credential);
+      }
+
+      console.log('BlobServiceClient created successfully');
+      
+      // Get container client
       const containerClient = blobServiceClient.getContainerClient(containerName);
+      console.log('Container client created for:', containerName);
       
       // Create a unique blob name with timestamp
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const blobName = `${timestamp}_${filename}`;
       
+      console.log('Preparing to upload blob:', blobName);
+      
       const blockBlobClient = containerClient.getBlockBlobClient(blobName);
       
       // Upload the file buffer to Azure Blob
+      console.log('Starting blob upload...');
       const uploadBlobResponse = await blockBlobClient.upload(buffer, buffer.length, {
         blobHTTPHeaders: {
           blobContentType: contentType
@@ -169,7 +198,13 @@ const generatepdf = async (request, reply) => {
       });
 
     } catch (azureError) {
-      console.error('Azure Blob upload failed:', azureError);
+      console.error('=== AZURE BLOB UPLOAD FAILED ===');
+      console.error('Error details:', {
+        message: azureError.message,
+        stack: azureError.stack,
+        code: azureError.code,
+        statusCode: azureError.statusCode
+      });
       
       // Return response without Azure Blob data if it fails
       return reply.send({
@@ -181,7 +216,9 @@ const generatepdf = async (request, reply) => {
           agreement: agreementResponse.data,
           azureBlob: {
             error: 'Azure Blob upload failed',
-            message: azureError.message
+            message: azureError.message,
+            code: azureError.code,
+            statusCode: azureError.statusCode
           }
         },
         timestamp: new Date().toISOString()
