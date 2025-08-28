@@ -77,7 +77,7 @@ async function insertSkuDetail(data) {
     data.site || null,
     data.skutype || null,  // Only insert if provided
     data.bulk_expert || null,
-    data.is_approved || null
+    data.is_approved !== undefined ? data.is_approved : null
   ];
   
   try {

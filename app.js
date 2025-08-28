@@ -144,6 +144,10 @@ fastify.register(checkPdfStatusRoutes);
 const sendforApprovalRoutes = require('./routes/route.sendforApproval');
 fastify.register(sendforApprovalRoutes);
 
+// Register SKU Approval routes
+const skuApprovalRoutes = require('./routes/skuApproval.routes');
+fastify.register(skuApprovalRoutes);
+
 
 
 // Add JWT middleware globally
