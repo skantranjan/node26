@@ -58,7 +58,25 @@ async function sendforApproval(cm_code) {
             usersResult = await pool.query(usersQuery, [userIds]);
         }
         
-        // Step 4: Send emails to all users
+        // Step 4: Update approval-related fields for all SKUs with this CM code
+        const updateSkuQuery = `
+            UPDATE sdp_skudetails 
+            SET is_sendforapproval = true, 
+                is_admin = false, 
+                is_cmapproved = true 
+            WHERE cm_code = $1 AND is_active = true
+            RETURNING id, sku_code, sku_description, is_sendforapproval, is_admin, is_cmapproved
+        `;
+        const updateSkuResult = await pool.query(updateSkuQuery, [cm_code]);
+        
+        console.log(`✅ Updated ${updateSkuResult.rows.length} SKUs with approval status changes`);
+        if (updateSkuResult.rows.length > 0) {
+            console.log('📋 SKUs updated:', updateSkuResult.rows.map(sku => 
+                `${sku.sku_code} - ${sku.sku_description} (send: ${sku.is_sendforapproval}, admin: ${sku.is_admin}, cm_approved: ${sku.is_cmapproved})`
+            ));
+        }
+        
+        // Step 5: Send emails to all users
         let emailResults = [];
         if (usersResult.rows.length > 0) {
             emailResults = await sendEmailsToUsers(usersResult.rows, contractorData);
@@ -81,7 +99,18 @@ async function sendforApproval(cm_code) {
                 },
                 spocs_count: spocsResult.rows.length,
                 users: usersResult.rows,
-                emails_sent: emailResults
+                emails_sent: emailResults,
+                skus_updated: {
+                    count: updateSkuResult.rows.length,
+                    skus: updateSkuResult.rows.map(sku => ({
+                        id: sku.id,
+                        sku_code: sku.sku_code,
+                        sku_description: sku.sku_description,
+                        is_sendforapproval: sku.is_sendforapproval,
+                        is_admin: sku.is_admin,
+                        is_cmapproved: sku.is_cmapproved
+                    }))
+                }
             }
         };
         

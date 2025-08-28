@@ -5,13 +5,23 @@ const { updateSkuApproval, sendApprovalEmail } = require('../models/model.skuApp
  */
 async function updateSkuApprovalController(request, reply) {
   try {
-    const { sku_code, cm_code, is_approved } = request.body;
+    const { 
+      sku_code, 
+      cm_code, 
+      is_approved, 
+      comment,
+      is_admin,
+      is_cmapproved
+    } = request.body;
 
     // Log the incoming data from UI
     console.log('=== SKU APPROVAL REQUEST DATA ===');
     console.log('SKU Code:', sku_code);
     console.log('CM Code:', cm_code);
     console.log('Is Approved:', is_approved);
+    console.log('Comment:', comment || 'No comment provided');
+    console.log('Is Admin:', is_admin);
+    console.log('Is CM Approved:', is_cmapproved);
     console.log('=== END SKU APPROVAL REQUEST DATA ===');
 
     // Validate required fields
@@ -36,8 +46,15 @@ async function updateSkuApprovalController(request, reply) {
       });
     }
 
-    // Update SKU approval status
-    const updatedSku = await updateSkuApproval(sku_code, cm_code, is_approved);
+    // Update SKU approval status with additional fields
+    const updatedSku = await updateSkuApproval(
+      sku_code, 
+      cm_code, 
+      is_approved, 
+      comment,
+      is_admin,
+      is_cmapproved
+    );
     
     if (!updatedSku) {
       return reply.code(404).send({ 
@@ -57,7 +74,7 @@ async function updateSkuApprovalController(request, reply) {
     }
 
     reply.code(200).send({ 
-      success: true, 
+      success: true,
       message: 'SKU approval status updated successfully',
       data: updatedSku,
       email_sent: emailResult ? true : false,
