@@ -8,7 +8,7 @@ const { insertComponentAuditLog } = require('./model.addComponentAuditLog');
  */
 async function getSkuDetailsByCMCode(cmCode) {
   const query = `
-    SELECT id, sku_code, site, sku_description, cm_code, cm_description, sku_reference, is_active, created_by, created_date, period, purchased_quantity, sku_reference_check, formulation_reference, dual_source_sku, skutype, bulk_expert
+    SELECT id, sku_code, site, sku_description, cm_code, cm_description, sku_reference, is_active, created_by, created_date, period, purchased_quantity, sku_reference_check, formulation_reference, dual_source_sku, skutype, bulk_expert, is_approved, is_display, is_sendforapproval, is_admin, is_cmapproved
     FROM public.sdp_skudetails
     WHERE cm_code = $1 AND is_active = true
     ORDER BY id DESC;
@@ -23,7 +23,7 @@ async function getSkuDetailsByCMCode(cmCode) {
  */
 async function getAllSkuDetails() {
   const query = `
-    SELECT id, sku_code, site, sku_description, cm_code, cm_description, sku_reference, is_active, created_by, created_date, period, purchased_quantity, sku_reference_check, formulation_reference, dual_source_sku, skutype, bulk_expert
+    SELECT id, sku_code, site, sku_description, cm_code, cm_description, sku_reference, is_active, created_by, created_date, period, purchased_quantity, sku_reference_check, formulation_reference, dual_source_sku, skutype, bulk_expert, is_approved, is_display, is_sendforapproval, is_admin, is_cmapproved
     FROM public.sdp_skudetails
     WHERE is_active = true
     ORDER BY id DESC;
@@ -86,9 +86,9 @@ async function getAllSkuDescriptions() {
 async function insertSkuDetail(data) {
   const query = `
     INSERT INTO public.sdp_skudetails (
-      sku_code, sku_description, cm_code, cm_description, sku_reference, is_active, created_by, created_date, period, purchased_quantity, sku_reference_check, formulation_reference, dual_source_sku, site, skutype, bulk_expert
-    ) VALUES ($1, $2, $3, $4, NULL, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-    RETURNING id, sku_code, sku_description, cm_code, cm_description, is_active, created_by, created_date, period, purchased_quantity, sku_reference_check, formulation_reference, dual_source_sku, site, skutype, bulk_expert;
+      sku_code, sku_description, cm_code, cm_description, sku_reference, is_active, created_by, created_date, period, purchased_quantity, sku_reference_check, formulation_reference, dual_source_sku, site, skutype, bulk_expert, is_admin, is_cmapproved
+    ) VALUES ($1, $2, $3, $4, NULL, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+    RETURNING id, sku_code, sku_description, cm_code, cm_description, is_active, created_by, created_date, period, purchased_quantity, sku_reference_check, formulation_reference, dual_source_sku, site, skutype, bulk_expert, is_admin, is_cmapproved;
   `;
   const values = [
     data.sku_code,
@@ -105,7 +105,9 @@ async function insertSkuDetail(data) {
     data.dual_source_sku || null,
     data.site || null,
     data.skutype || null,
-    data.bulk_expert || null
+    data.bulk_expert || null,
+    data.is_admin !== undefined ? data.is_admin : true,  // Default to true for admin
+    data.is_cmapproved !== undefined ? data.is_cmapproved : false  // Default to false for CM approval
   ];
   const result = await pool.query(query, values);
   return result.rows[0];
@@ -585,7 +587,8 @@ async function getConsolidatedDashboardData(cmCode, options = {}) {
       const query = `
         SELECT id, sku_code, site, sku_description, cm_code, cm_description, sku_reference, 
                is_active, created_by, created_date, period, purchased_quantity, sku_reference_check, 
-               formulation_reference, dual_source_sku, skutype, bulk_expert, is_approved
+               formulation_reference, dual_source_sku, skutype, bulk_expert, is_approved, 
+               is_display, is_sendforapproval, is_admin, is_cmapproved
         FROM public.sdp_skudetails
         WHERE cm_code = $1 AND is_active = true
         ORDER BY id DESC;

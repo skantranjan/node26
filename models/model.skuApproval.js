@@ -19,13 +19,14 @@ const transporter = nodemailer.createTransport(emailConfig);
  * @param {string} sku_code - The SKU code
  * @param {string} cm_code - The CM code
  * @param {number} is_approved - The approval status (0, 1, 2, etc.)
+ * @param {string} comment - Optional comment for the approval status change
  * @returns {Promise<Object>} The updated record
  */
-async function updateSkuApproval(sku_code, cm_code, is_approved) {
+async function updateSkuApproval(sku_code, cm_code, is_approved, comment, is_admin, is_cmapproved) {
   try {
     // First check if SKU exists with the given sku_code and cm_code
     const checkQuery = `
-      SELECT id, sku_code, sku_description, cm_code, is_approved
+      SELECT id, sku_code, sku_description, cm_code, is_approved, is_admin, is_cmapproved
       FROM public.sdp_skudetails 
       WHERE sku_code = $1 AND cm_code = $2 AND is_active = true
     `;
@@ -40,19 +41,53 @@ async function updateSkuApproval(sku_code, cm_code, is_approved) {
     console.log('✅ SKU found, updating approval status...');
     console.log('Current approval status:', checkResult.rows[0].is_approved);
     console.log('New approval status:', is_approved);
+    console.log('Current admin status:', checkResult.rows[0].is_admin);
+    console.log('New admin status:', is_admin);
+    console.log('Current CM approval status:', checkResult.rows[0].is_cmapproved);
+    console.log('New CM approval status:', is_cmapproved);
 
-    // Update the is_approved field
+    // Build dynamic UPDATE query based on provided fields
+    const updateFields = [];
+    const values = [];
+    let paramIndex = 1;
+    
+    // Always update is_approved
+    updateFields.push(`is_approved = $${paramIndex++}`);
+    values.push(is_approved);
+    
+    // Update comment if provided
+    if (comment !== undefined) {
+      updateFields.push(`comment = $${paramIndex++}`);
+      values.push(comment);
+    }
+    
+    // Update is_admin if provided
+    if (is_admin !== undefined) {
+      updateFields.push(`is_admin = $${paramIndex++}`);
+      values.push(is_admin);
+    }
+    
+    // Update is_cmapproved if provided
+    if (is_cmapproved !== undefined) {
+      updateFields.push(`is_cmapproved = $${paramIndex++}`);
+      values.push(is_cmapproved);
+    }
+    
+    // Add WHERE condition parameters
+    values.push(sku_code, cm_code);
+    
     const updateQuery = `
       UPDATE public.sdp_skudetails 
-      SET is_approved = $3
-      WHERE sku_code = $1 AND cm_code = $2 AND is_active = true
+      SET ${updateFields.join(', ')}
+      WHERE sku_code = $${paramIndex++} AND cm_code = $${paramIndex++} AND is_active = true
       RETURNING id, sku_code, sku_description, cm_code, cm_description, 
                 sku_reference, is_active, created_by, created_date, period, 
                 purchased_quantity, sku_reference_check, formulation_reference, 
-                dual_source_sku, site, skutype, bulk_expert, is_copied, is_approved
+                dual_source_sku, site, skutype, bulk_expert, is_copied, is_approved,
+                comment, is_admin, is_cmapproved
     `;
     
-    const updateResult = await pool.query(updateQuery, [sku_code, cm_code, is_approved]);
+    const updateResult = await pool.query(updateQuery, values);
     
     if (updateResult.rows.length === 0) {
       console.log('❌ Failed to update SKU approval status');
@@ -155,6 +190,12 @@ async function sendApprovalEmail(skuData) {
               <td style="padding: 8px; border-bottom: 1px solid #dee2e6;"><strong>Updated Date:</strong></td>
               <td style="padding: 8px; border-bottom: 1px solid #dee2e6;">${new Date().toLocaleDateString()}</td>
             </tr>
+            ${skuData.comment ? `
+            <tr>
+              <td style="padding: 8px; border-bottom: 1px solid #dee2e6;"><strong>Comment:</strong></td>
+              <td style="padding: 8px; border-bottom: 1px solid #dee2e6;">${skuData.comment}</td>
+            </tr>
+            ` : ''}
           </table>
         </div>
         <p>Please review the updated status and take any necessary actions.</p>

@@ -56,9 +56,9 @@ async function getMappingTableStructure() {
 async function insertSkuDetail(data) {
   const query = `
     INSERT INTO public.sdp_skudetails (
-      sku_code, sku_description, cm_code, cm_description, sku_reference, is_active, created_by, created_date, period, purchased_quantity, sku_reference_check, formulation_reference, dual_source_sku, site, skutype, bulk_expert, is_approved
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
-    RETURNING id, sku_code, sku_description, cm_code, cm_description, sku_reference, is_active, created_by, created_date, period, purchased_quantity, sku_reference_check, formulation_reference, dual_source_sku, site, skutype, bulk_expert, is_approved;
+      sku_code, sku_description, cm_code, cm_description, sku_reference, is_active, created_by, created_date, period, purchased_quantity, sku_reference_check, formulation_reference, dual_source_sku, site, skutype, bulk_expert, is_approved, is_display, is_sendforapproval, is_admin, is_cmapproved
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+    RETURNING id, sku_code, sku_description, cm_code, cm_description, sku_reference, is_active, created_by, created_date, period, purchased_quantity, sku_reference_check, formulation_reference, dual_source_sku, site, skutype, bulk_expert, is_approved, is_display, is_sendforapproval, is_admin, is_cmapproved;
   `;
   const values = [
     data.sku_code,
@@ -77,7 +77,11 @@ async function insertSkuDetail(data) {
     data.site || null,
     data.skutype || null,  // Only insert if provided
     data.bulk_expert || null,
-    data.is_approved !== undefined ? data.is_approved : null
+    data.is_approved !== undefined ? data.is_approved : null,
+    data.is_display !== undefined ? data.is_display : true,  // Default to true for display
+    data.is_sendforapproval !== undefined ? data.is_sendforapproval : false,  // Default to false for approval
+    data.is_admin !== undefined ? data.is_admin : true,  // Default to true for admin
+    data.is_cmapproved !== undefined ? data.is_cmapproved : false  // Default to false for CM approval
   ];
   
   try {
