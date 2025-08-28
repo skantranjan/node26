@@ -140,6 +140,12 @@ fastify.register(pdfTransientDocumentRoutes);
 // Register Check PDF Status routes
 fastify.register(checkPdfStatusRoutes);
 
+// Register Send for Approval routes
+const sendforApprovalRoutes = require('./routes/route.sendforApproval');
+fastify.register(sendforApprovalRoutes);
+
+
+
 // Add JWT middleware globally
 //fastify.addHook('preHandler', jwtMiddleware);
 
