@@ -1,0 +1,516 @@
+generate pdf query based on excel sheet - filter by period_id
+ 
+SELECT DISTINCT ON (scm.cm_code, scm.sku_code, scm.component_code, scm.version)
+
+    scm.cm_code AS "CM Code",
+
+    scm.sku_code AS "CM Description",  -- Intentional reuse
+
+    scm.sku_code AS "SKU Code",
+
+    sd.sku_description AS "SKU Description",
+
+    sd.purchased_quantity AS "Purchased Quantity",
+
+    sd.sku_reference AS "Reference SKU",
+
+    sd.sku_reference_check AS "SKU Reference Check",
+
+    sd.formulation_reference AS "Formulation Reference",
+
+    cd.material_type_id AS "Material Type",
+
+    cd.components_reference AS "Components Reference",
+
+    cd.component_code AS "Component Code",
+
+    cd.component_description AS "Component Description",
+
+    cd.component_valid_from AS "Component Validity From",
+
+    cd.component_valid_to AS "Component Validity To",
+
+    cd.component_material_group AS "Component Material Group",
+
+    cd.component_quantity AS "Component Quantity",
+
+    cd.component_uom_id AS "Component Unit of Measure",
+
+    cd.component_base_quantity AS "Component Base Quantity",
+
+    cd.component_base_uom_id AS "Component Base Unit of Measure",
+
+    cd.percent_w_w AS "Component %w/w",
+
+    cd.evidence AS "Evidence",
+
+    scm.component_packaging_type_id AS "Component Packaging Type",
+
+    cd.helper_column AS "Component Packaging Material",
+
+    scm.sku_code AS "Helper Column",
+
+    cd.component_unit_weight AS "Component Unit Weight",
+
+    cd.weight_unit_measure_id AS "Weight Unit Measure",
+
+    cd.percent_mechanical_pcr_content AS "% Mechanical Post-Consumer Recycled Content(inc Chemical)",
+
+    cd.percent_mechanical_pir_content AS "% Mechanical Post-Industiral Recycled Content",
+
+    cd.percent_chemical_recycled_content AS "% Chemical Recycled Content",
+
+    cd.percent_bio_sourced AS "% Bio Sourced",
+
+    cd.material_structure_multimaterials AS "Material Structure-multimaterial only(with % wt)",
+
+    cd.component_packaging_color_opacity AS "Component Packaging Colour",
+
+    cd.component_packaging_level_id AS "Component Packaging Level",
+
+    cd.component_dimensions AS "Component Dimensions",
+
+    cd.packaging_specification_evidence AS "Packaging Specification Evidence",
+
+    cd.evidence_of_recycled_or_bio_source AS "Evidence of Recycled or Bio Source",
+
+    cd.last_update_date AS "Last Update Date"
+ 
+FROM 
+
+    public.sdp_sku_component_mapping_details scm
+
+LEFT JOIN public.sdp_skudetails sd 
+
+    ON scm.sku_code = sd.sku_code AND scm.cm_code = sd.cm_code
+
+LEFT JOIN public.sdp_component_details cd 
+
+    ON scm.component_code = cd.component_code 
+
+       AND scm.sku_code = cd.sku_code 
+
+       AND scm.cm_code = cd.cm_code
+
+WHERE 
+
+    scm.cm_code = 'DEAMA'
+
+    AND scm.period_id = 3  -- Replace 123 with your actual period_id
+
+ORDER BY 
+
+    scm.cm_code, scm.sku_code, scm.component_code, scm.version;
+ 
+audit log based on period
+ 
+generate pdf query based on excel sheet - filter by period_id
+ 
+SELECT DISTINCT ON (scm.cm_code, scm.sku_code, scm.component_code, scm.version)
+
+    scm.cm_code AS "CM Code",
+
+    scm.sku_code AS "CM Description",  -- Intentional reuse
+
+    scm.sku_code AS "SKU Code",
+
+    sd.sku_description AS "SKU Description",
+
+    sd.purchased_quantity AS "Purchased Quantity",
+
+    sd.sku_reference AS "Reference SKU",
+
+    sd.sku_reference_check AS "SKU Reference Check",
+
+    sd.formulation_reference AS "Formulation Reference",
+
+    cd.material_type_id AS "Material Type",
+
+    cd.components_reference AS "Components Reference",
+
+    cd.component_code AS "Component Code",
+
+    cd.component_description AS "Component Description",
+
+    cd.component_valid_from AS "Component Validity From",
+
+    cd.component_valid_to AS "Component Validity To",
+
+    cd.component_material_group AS "Component Material Group",
+
+    cd.component_quantity AS "Component Quantity",
+
+    cd.component_uom_id AS "Component Unit of Measure",
+
+    cd.component_base_quantity AS "Component Base Quantity",
+
+    cd.component_base_uom_id AS "Component Base Unit of Measure",
+
+    cd.percent_w_w AS "Component %w/w",
+
+    cd.evidence AS "Evidence",
+
+    scm.component_packaging_type_id AS "Component Packaging Type",
+
+    cd.helper_column AS "Component Packaging Material",
+
+    scm.sku_code AS "Helper Column",
+
+    cd.component_unit_weight AS "Component Unit Weight",
+
+    cd.weight_unit_measure_id AS "Weight Unit Measure",
+
+    cd.percent_mechanical_pcr_content AS "% Mechanical Post-Consumer Recycled Content(inc Chemical)",
+
+    cd.percent_mechanical_pir_content AS "% Mechanical Post-Industiral Recycled Content",
+
+    cd.percent_chemical_recycled_content AS "% Chemical Recycled Content",
+
+    cd.percent_bio_sourced AS "% Bio Sourced",
+
+    cd.material_structure_multimaterials AS "Material Structure-multimaterial only(with % wt)",
+
+    cd.component_packaging_color_opacity AS "Component Packaging Colour",
+
+    cd.component_packaging_level_id AS "Component Packaging Level",
+
+    cd.component_dimensions AS "Component Dimensions",
+
+    cd.packaging_specification_evidence AS "Packaging Specification Evidence",
+
+    cd.evidence_of_recycled_or_bio_source AS "Evidence of Recycled or Bio Source",
+
+    cd.last_update_date AS "Last Update Date"
+ 
+FROM 
+
+    public.sdp_sku_component_mapping_details scm
+
+LEFT JOIN public.sdp_skudetails sd 
+
+    ON scm.sku_code = sd.sku_code AND scm.cm_code = sd.cm_code
+
+LEFT JOIN public.sdp_component_details cd 
+
+    ON scm.component_code = cd.component_code 
+
+       AND scm.sku_code = cd.sku_code 
+
+       AND scm.cm_code = cd.cm_code
+
+WHERE 
+
+    scm.cm_code = 'DEAMA'
+
+    AND scm.period_id = 3  -- Replace 123 with your actual period_id
+
+ORDER BY 
+
+    scm.cm_code, scm.sku_code, scm.component_code, scm.version;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+SELECT DISTINCT ON (scm.cm_code, scm.sku_code, scm.component_code, scm.version)
+
+    scm.cm_code,
+
+    scm.sku_code,
+
+    scm.component_code,
+
+    scm.version,
+
+    scm.period_id,
+
+    p.period AS period_name,
+
+    scm.component_valid_from,
+
+    scm.component_valid_to,
+
+    scm.component_packaging_type_id,
+
+    cpt.item_name AS packaging_type_name,
+
+    cpm.item_name AS packaging_material_name,
+
+    scm.created_by AS mapping_created_by,
+
+    u.username AS mapping_created_by_name,
+
+    scm.created_at AS mapping_created_at,
+
+    scm.updated_at AS mapping_updated_at,
+
+    scm.is_active AS mapping_is_active,
+
+    scm.componentvaliditydatefrom,
+
+    scm.componentvaliditydateto,
+ 
+    sd.*,
+ 
+    cd.id AS component_id,
+
+    cd.formulation_reference,
+
+    cd.material_type_id,
+
+    mt.item_name AS material_type_name,
+
+    cd.component_description,
+
+    cd.component_valid_from AS component_master_valid_from,
+
+    cd.component_valid_to AS component_master_valid_to,
+
+    cd.component_material_group,
+
+    cd.component_quantity,
+
+    cd.component_uom_id,
+
+    uom.item_name AS component_uom_name,
+
+    cd.component_base_quantity,
+
+    cd.component_base_uom_id,
+
+    base_uom.item_name AS component_base_uom_name,
+
+    cd.percent_w_w,
+
+    cd.evidence,
+
+    cd.component_packaging_material,
+
+    cd.helper_column,
+
+    cd.component_unit_weight,
+
+    cd.weight_unit_measure_id,
+
+    cd.percent_mechanical_pcr_content,
+
+    cd.percent_mechanical_pir_content,
+
+    cd.percent_chemical_recycled_content,
+
+    cd.percent_bio_sourced,
+
+    cd.material_structure_multimaterials,
+
+    cd.component_packaging_color_opacity,
+
+    cd.component_packaging_level_id,
+
+    cd.component_dimensions,
+
+    cd.packaging_specification_evidence,
+
+    cd.evidence_of_recycled_or_bio_source,
+
+    cd.last_update_date,
+
+    cd.category_entry_id,
+
+    cd.data_verification_entry_id,
+
+    cd.user_id,
+
+    cd.signed_off_by,
+
+    su.username AS signed_off_by_name,
+
+    cd.signed_off_date,
+
+    cd.mandatory_fields_completion_status,
+
+    cd.evidence_provided,
+
+    cd.document_status,
+
+    cd.is_active AS component_is_active,
+
+    cd.created_by AS component_created_by,
+
+    cd.created_date AS component_created_date,
+
+    cd.year,
+
+    cd.component_unit_weight_id,
+
+    cd.periods,
+
+    cd.version AS component_version,
+
+    cd.componentvaliditydatefrom AS component_master_validity_from,
+
+    cd.componentvaliditydateto AS component_master_validity_to
+ 
+FROM 
+
+    public.sdp_sku_component_mapping_details scm
+
+LEFT JOIN public.sdp_skudetails sd 
+
+    ON scm.sku_code = sd.sku_code AND scm.cm_code = sd.cm_code
+
+LEFT JOIN public.sdp_component_details cd 
+
+    ON scm.component_code = cd.component_code 
+
+       AND scm.sku_code = cd.sku_code 
+
+       AND scm.cm_code = cd.cm_code
+
+LEFT JOIN public.sdp_users u ON scm.created_by = u.username
+
+LEFT JOIN public.sdp_users su ON cd.signed_off_by = su.id
+
+LEFT JOIN public.sdp_period p ON scm.period_id = p.id
+
+LEFT JOIN public.sdp_material_type mt ON cd.material_type_id = mt.item_name
+
+LEFT JOIN public.sdp_component_uom uom ON cd.component_uom_id::text = uom.id::text
+
+LEFT JOIN public.sdp_component_base_uom base_uom ON cd.component_base_uom_id::text = base_uom.id::text
+
+LEFT JOIN public.sdp_component_packaging_type cpt ON scm.component_packaging_type_id = cpt.item_name
+
+LEFT JOIN public.sdp_component_packaging_material cpm ON cpt.component_packaging_material = cpm.id
+ 
+WHERE 
+
+    scm.cm_code = 'DEAMA'
+
+ORDER BY 
+
+    scm.cm_code, scm.sku_code, scm.component_code, scm.version;
+ 
+Based on excel sheet columns- I have showup that columns only for generate pdf
+ 
+SELECT DISTINCT ON (scm.cm_code, scm.sku_code, scm.component_code, scm.version)
+
+    scm.cm_code AS "CM Code",
+
+    scm.sku_code AS "CM Description",  -- Assuming this is intentional
+
+    scm.sku_code AS "SKU Code",
+
+    sd.sku_description AS "SKU Description",
+
+    sd.purchased_quantity AS "Purchased Quantity",
+
+    sd.sku_reference AS "Reference SKU",
+
+    sd.sku_reference_check AS "SKU Reference Check",
+
+    sd.formulation_reference AS "Formulation Reference",
+
+    cd.material_type_id AS "Material Type",
+
+    cd.components_reference AS "Components Reference",
+
+    cd.component_code AS "Component Code",
+
+    cd.component_description AS "Component Description",
+
+    cd.component_valid_from AS "Component Validity From",
+
+    cd.component_valid_to AS "Component Validity To",
+
+    cd.component_material_group AS "Component Material Group",
+
+    cd.component_quantity AS "Component Quantity",
+
+    cd.component_uom_id AS "Component Unit of Measure",
+
+    cd.component_base_quantity AS "Component Base Quantity",
+
+    cd.component_base_uom_id AS "Component Base Unit of Measure",
+
+    cd.percent_w_w AS "Component %w/w",
+
+    cd.evidence AS "Evidence",
+
+    scm.component_packaging_type_id AS "Component Packaging Type",
+
+    cd.helper_column AS "Component Packaging Material",
+
+    scm.sku_code AS "Helper Column",
+
+    cd.component_unit_weight AS "Component Unit Weight",
+
+    cd.weight_unit_measure_id AS "Weight Unit Measure",
+
+    cd.percent_mechanical_pcr_content AS "% Mechanical Post-Consumer Recycled Content(inc Chemical)",
+
+    cd.percent_mechanical_pir_content AS "% Mechanical Post-Industiral Recycled Content",
+
+    cd.percent_chemical_recycled_content AS "% Chemical Recycled Content",
+
+    cd.percent_bio_sourced AS "% Bio Sourced",
+
+    cd.material_structure_multimaterials AS "Material Structure-multimaterial only(with % wt)",
+
+    cd.component_packaging_color_opacity AS "Component Packaging Colour",
+
+    cd.component_packaging_level_id AS "Component Packaging Level",
+
+    cd.component_dimensions AS "Component Dimensions",
+
+    cd.packaging_specification_evidence AS "Packaging Specification Evidence",
+
+    cd.evidence_of_recycled_or_bio_source AS "Evidence of Recycled or Bio Source",
+
+    cd.last_update_date AS "Last Update Date"
+ 
+FROM 
+
+    public.sdp_sku_component_mapping_details scm
+
+LEFT JOIN public.sdp_skudetails sd 
+
+    ON scm.sku_code = sd.sku_code AND scm.cm_code = sd.cm_code
+
+LEFT JOIN public.sdp_component_details cd 
+
+    ON scm.component_code = cd.component_code 
+
+       AND scm.sku_code = cd.sku_code 
+
+       AND scm.cm_code = cd.cm_code
+
+WHERE 
+
+    scm.cm_code = 'DEAMA'
+
+ORDER BY 
+
+    scm.cm_code, scm.sku_code, scm.component_code, scm.version;
+ 
